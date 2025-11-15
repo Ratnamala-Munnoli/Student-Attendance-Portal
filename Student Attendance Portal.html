@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Student Attendance Portal</title>
+
+<style>
+/* --- FULL ATTRACTIVE UI --- */
+body {
+    font-family: Poppins, sans-serif;
+    background: linear-gradient(135deg, #6a11cb, #2575fc);
+    height: 100vh;
+    padding: 20px;
+    color: #fff;
+}
+
+h2, h3 {
+    text-align: center;
+}
+
+.container {
+    width: 380px;
+    margin: auto;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 25px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    margin-top: 20px;
+    animation: fadein 1s ease-in-out;
+}
+
+@keyframes fadein {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+input, select, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+}
+
+input, select {
+    background: rgba(255, 255, 255, 0.85);
+}
+
+button {
+    background: #000;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+button:hover {
+    transform: scale(1.05);
+}
+
+table {
+    width: 100%;
+    margin-top: 15px;
+    background: white;
+    color: black;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background: black;
+    color: white;
+}
+
+#dashboard { display: none; }
+
+.link {
+    text-align: center;
+    margin-top: 10px;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+</style>
+</head>
+<body>
+
+<h2>💠 Student Attendance Portal</h2>
+
+<!-- ================= REGISTER FORM ================= -->
+<div id="registerBox" class="container">
+    <h3>Create Account</h3>
+
+    <select id="regRole">
+        <option value="">Select Role</option>
+        <option value="teacher">Teacher</option>
+        <option value="student">Student</option>
+    </select>
+
+    <input type="text" id="regName" placeholder="Full Name">
+    <input type="text" id="regUser" placeholder="Username">
+    <input type="password" id="regPass" placeholder="Password">
+
+    <button onclick="register()">Register</button>
+
+    <p class="link" onclick="showLogin()">Already have an account? Login</p>
+</div>
+
+<!-- ================= LOGIN FORM ================= -->
+<div id="loginBox" class="container" style="display:none;">
+    <h3>Login</h3>
+    <input type="text" id="logUser" placeholder="Username">
+    <input type="password" id="logPass" placeholder="Password">
+    <button onclick="login()">Login</button>
+
+    <p class="link" onclick="showRegister()">Create new account</p>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div id="dashboard" class="container">
+    <h3 id="welcome"></h3>
+
+    <div id="teacherOptions" style="display:none;">
+        <h3>Add Student</h3>
+        <input type="text" id="sname" placeholder="Student Name">
+        <input type="text" id="sroll" placeholder="Roll Number">
+        <button onclick="addStudent()">Add Student</button>
+
+        <h3>Mark Attendance</h3>
+        <div id="studentList"></div>
+        <button onclick="saveAttendance()">Save Attendance</button>
+    </div>
+
+    <h3>Attendance Records</h3>
+    <table id="attendanceTable">
+        <tr>
+            <th>Name</th>
+            <th>Roll</th>
+            <th>Date</th>
+            <th>Status</th>
+        </tr>
+    </table>
+</div>
+
+<script>
+// ================= LOCAL STORAGE ====================
+let users = JSON.parse(localStorage.getItem("users")) || [];
+let students = JSON.parse(localStorage.getItem("students")) || [];
+let attendance = JSON.parse(localStorage.getItem("attendance")) || [];
+
+let currentUser = null;
+
+// ================= SHOW LOGIN & REGISTER =================
+function showRegister() {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("registerBox").style.display = "block";
+}
+function showLogin() {
+    document.getElementById("registerBox").style.display = "none";
+    document.getElementById("loginBox").style.display = "block";
+}
+
+// ================= REGISTER =================
+function register() {
+    let role = document.getElementById("regRole").value;
+    let name = document.getElementById("regName").value;
+    let user = document.getElementById("regUser").value;
+    let pass = document.getElementById("regPass").value;
+
+    if (!role || !name || !user || !pass) {
+        alert("Please fill all fields!");
+        return;
+    }
+
+    users.push({ role, name, user, pass });
+    localStorage.setItem("users", JSON.stringify(users));
+
+    alert("Account created successfully!");
+    showLogin();
+}
+
+// ================= LOGIN =================
+function login() {
+    let user = document.getElementById("logUser").value;
+    let pass = document.getElementById("logPass").value;
+
+    let found = users.find(u => u.user === user && u.pass === pass);
+
+    if (!found) {
+        alert("Invalid login!");
+        return;
+    }
+
+    currentUser = found;
+    startDashboard();
+}
+
+// ================= LOAD DASHBOARD =================
+function startDashboard() {
+    document.getElementById("registerBox").style.display = "none";
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+
+    document.getElementById("welcome").innerHTML =
+        "Welcome, " + currentUser.name + " (" + currentUser.role + ")";
+
+    if (currentUser.role === "teacher") {
+        document.getElementById("teacherOptions").style.display = "block";
+        loadStudents();
+    } else {
+        document.getElementById("teacherOptions").style.display = "none";
+    }
+
+    loadAttendance();
+}
+
+// ================= ADD STUDENT =================
+function addStudent() {
+    let name = document.getElementById("sname").value;
+    let roll = document.getElementById("sroll").value;
+
+    if (!name || !roll) {
+        alert("Fill all details!");
+        return;
+    }
+
+    students.push({ name, roll });
+    localStorage.setItem("students", JSON.stringify(students));
+
+    loadStudents();
+    alert("Student Added!");
+}
+
+// ================= LOAD STUDENTS =================
+function loadStudents() {
+    let box = document.getElementById("studentList");
+    box.innerHTML = "";
+
+    students.forEach((s, index) => {
+        box.innerHTML += `
+            <p>${s.name} (${s.roll})
+                <select id="att${index}">
+                    <option value="Present">Present</option>
+                    <option value="Absent">Absent</option>
+                </select>
+            </p>
+        `;
+    });
+}
+
+// ================= SAVE ATTENDANCE =================
+function saveAttendance() {
+    let today = new Date().toISOString().slice(0,10);
+
+    students.forEach((s, i) => {
+        attendance.push({
+            name: s.name,
+            roll: s.roll,
+            date: today,
+            status: document.getElementById("att"+i).value
+        });
+    });
+
+    localStorage.setItem("attendance", JSON.stringify(attendance));
+    loadAttendance();
+    alert("Attendance Saved!");
+}
+
+// ================= SHOW ATTENDANCE =================
+function loadAttendance() {
+    let table = document.getElementById("attendanceTable");
+
+    table.innerHTML = `
+        <tr>
+            <th>Name</th>
+            <th>Roll</th>
+            <th>Date</th>
+            <th>Status</th>
+        </tr>
+    `;
+
+    attendance.forEach(a => {
+        table.innerHTML += `
+            <tr>
+                <td>${a.name}</td>
+                <td>${a.roll}</td>
+                <td>${a.date}</td>
+                <td>${a.status}</td>
+            </tr>
+        `;
+    });
+}
+
+</script>
+
+</body>
+</html>
